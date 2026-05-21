@@ -99,7 +99,7 @@ Hot-path execution is user-space only: no malloc, no kernel allocation, no dynam
 
 ## 🔬 Benchmark Deep-Dive
 
-The benchmark suite (`benchmarks/benchmark.cpp`) tests six core scenarios.  
+The benchmark suite ([`benchmarks/benchmark.cpp`](benchmarks/benchmark.cpp)) tests six core scenarios.  
 **Key comparison:**
 
 ### The Primary Comparison: NanoMatch vs STL

@@ -72,7 +72,7 @@ cd ..
 - **Pathological (Dataset B):** ~9.54 Million events/sec (extreme price swings, pure matching, no scans)
 - **Cancellation Storm (Dataset A):** ~93,489 events/sec (90% cancel rate, constant array scans, intentional stress test)
 
-👉 *See `docs/2_THROUGHPUT_E2E.md` for a full mathematical breakdown of how these specific datasets affect L1 cache speeds.*
+👉 *See [docs/2_THROUGHPUT_E2E.md](docs/2_THROUGHPUT_E2E.md) for a full mathematical breakdown of how these specific datasets affect L1 cache speeds.*
 
 ---
 
