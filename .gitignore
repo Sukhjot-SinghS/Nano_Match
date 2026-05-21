@@ -1,0 +1,47 @@
+# ==========================================
+# C++ & CMake Build Artifacts
+# ==========================================
+build/
+bin/
+out/
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+compile_commands.json
+
+# ==========================================
+# Compiled Executables
+# ==========================================
+trading_server
+engine_bench
+generator
+*.exe
+*.out
+*.app
+
+# ==========================================
+# Data & Logs (Massive Files)
+# ==========================================
+# Ignore all generated market datasets
+data/*.csv
+!data/.gitkeep
+
+# Ignore engine output logs
+trade_tape.csv
+*.log
+
+# ==========================================
+# IDEs & Editor Configurations
+# ==========================================
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# ==========================================
+# OS Specific & Profiling
+# ==========================================
+.DS_Store
+perf.data
+perf.data.old
