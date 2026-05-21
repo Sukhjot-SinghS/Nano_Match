@@ -33,7 +33,7 @@ See [`docs/1_LATENCY_PROFILE.md`](docs/1_LATENCY_PROFILE.md) for the complete br
 
 ```
 Nano_Match/
-│
+├── CMakeLists.txt
 ├── src/
 │   └── nano.cpp                  # Core matching engine (alignas(64), mmap, SPSC ring buffer)
 │
