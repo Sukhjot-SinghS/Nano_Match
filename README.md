@@ -17,7 +17,7 @@
 | **Median Latency p50 (Crossing)**         | 7.36 ns                     | 65.2 ns                   | **8.8× faster** |
 | **p90 Tail Latency (Crossing)**           | 7.97 ns                     | 76.5 ns                   | **9.6× faster** |
 | **p99 Tail Latency (Crossing)**           | 8.67 ns                     | 106.0 ns                  | **12.2× faster**|
-| **Micro-Benchmark Throughput**            | ~273.7 Million ops/sec      | ~30.7 Million ops/sec     | **8.9× higher** |
+| **Micro-Benchmark Throughput**            | ~273.4 Million ops/sec      | ~30.7 Million ops/sec     | **8.9× higher** |
 | **Peak E2E Throughput (Dataset C — Dense)** | **~24.04 Million events/sec** | —                        | Liquid market   |
 | **E2E Average Latency (Dataset C)**       | **41.60 ns/event**          | —                         | Over 5M orders  |
 
