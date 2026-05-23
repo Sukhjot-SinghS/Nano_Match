@@ -13,6 +13,13 @@ This project is built for native Linux environments. It relies on OS-level syste
 ### 1. Build the Project (Release Mode)
 To unleash the sub-microsecond latency, you **must** compile the engine with maximum hardware optimizations (`-O3`) and disable debugging overhead. 
 
+### ⚠️ Prerequisites
+* **OS:** **Linux (Ubuntu/Debian recommended)**. 
+    * *Note:* If you are on Windows, you **must** use **WSL2 (Windows Subsystem for Linux)**. This engine relies on POSIX system calls (`mmap`, `fcntl`, `unistd`) that are not available in native Windows PowerShell or CMD.
+* **Compiler:** GCC/G++ (Requires C++17 support or higher).
+* **Build System:** CMake and Make.
+* **Libraries:** Google Benchmark (`sudo apt-get install libbenchmark-dev`).
+
 ~~~bash
 # [Current Directory: Any]
 

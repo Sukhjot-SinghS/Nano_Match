@@ -202,7 +202,7 @@ See **[`docs/0_QUICK_START.md`](docs/0_QUICK_START.md)** for the build guide (pr
 - **Build System:** CMake + Make
 - **Benchmarking:** Google Benchmark
 - **Profiling:** Linux `perf` + Flame Graphs (`-fno-omit-frame-pointer`)
-- **OS:** Linux (Ubuntu/Debian or WSL2) — requires `mmap` and kernel support
+- **OS:** **Linux / WSL2** (Mandatory: requires POSIX `mmap` & system headers)
 - **Compiler Flags:** `-O3 -march=native -Wall -Wextra`
 
 ---
