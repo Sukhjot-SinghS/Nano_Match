@@ -58,7 +58,7 @@ Nano_Match/
 ```
 
 > **Note:**  
-> The CSV datasets (`dataset_A_realistic.csv`, `dataset_B_pathological.csv`, `orders.csv`) are **NOT** included in the repository.  
+> The CSV datasets (`dataset_A_realistic.csv`, `dataset_B_pathological.csv`, `dataset_C_dense_equilibrium.csv`) are **NOT** included in the repository.  
 > They are generated locally by running `generate_data.cpp` (see [`docs/0_QUICK_START.md`](docs/0_QUICK_START.md)).  
 > The generator creates 5M-row files in milliseconds via O(1) mechanics.
 
