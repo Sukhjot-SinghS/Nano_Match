@@ -5,7 +5,6 @@
 #include <sys/mman.h>   // For mmap(), madvise() - Direct memory mapping
 #include <sys/stat.h>   // For fstat() - Getting file sizes
 #include <unistd.h>     // For close() - OS level file closing
-#include <fstream>
 #include <thread>       // For std::thread - Hardware multi-threading
 #include <x86intrin.h>  // For __rdtsc() - Hardware CPU cycle counting
 #include <atomic>       // For std::atomic - Lock-free synchronization
@@ -142,11 +141,13 @@ private:
     std::vector<int32_t> asks_head;
     std::vector<int32_t> asks_tail;
 
-    // NEW: Network ID -> Internal RAM ID Map for O(1) cancellations
     std::vector<int32_t> order_map; 
 
     uint32_t best_bid = 0;
     uint32_t best_ask = MAX_PRICE_TICKS;
+    
+    uint64_t total_bid_volume = 0;
+    uint64_t total_ask_volume = 0;
 
 public:
     LimitOrderBook(size_t max_orders, LockFreeTradeLogger& logger)
@@ -156,12 +157,10 @@ public:
         asks_head.assign(MAX_PRICE_TICKS, NULL_ORDER);
         asks_tail.assign(MAX_PRICE_TICKS, NULL_ORDER);
         
-        // Ensure map is large enough to handle extreme ID generation safely
         order_map.assign(10000000, NULL_ORDER);
         std::cout << "Engine: Limit Order Book Initialized.\n";
     }
 
-    // Updated signature: Now accepts Network Order ID
     void add_order(uint64_t timestamp, uint64_t order_id, Side side, uint32_t price, uint32_t qty) {
         if (side == Side::BUY) {
             match_buy(price, qty);
@@ -177,7 +176,6 @@ public:
             return;
         }
 
-        // HFT FIX: Link Network ID to RAM Pool ID instantly
         if (order_id < order_map.size()) {
             order_map[order_id] = new_id; 
         }
@@ -191,14 +189,18 @@ public:
         new_order.next_id = NULL_ORDER;
         new_order.prev_id = NULL_ORDER;
 
-        if (side == Side::BUY) insert_bid(new_id, price);
-        else                   insert_ask(new_id, price);
+        if (side == Side::BUY) {
+            insert_bid(new_id, price);
+            total_bid_volume += qty;
+        } else {
+            insert_ask(new_id, price);
+            total_ask_volume += qty;
+        }
     }
 
     void cancel_order(uint64_t order_id) {
         if (order_id >= order_map.size()) return;
         
-        // Instant O(1) Lookup
         int32_t pool_id = order_map[order_id];
         if (pool_id == NULL_ORDER) return; 
 
@@ -211,7 +213,6 @@ public:
         int32_t p_id = order.prev_id;
         int32_t n_id = order.next_id;
 
-        // Delink forward
         if (p_id != NULL_ORDER) {
             pool.get(p_id).next_id = n_id;
         } else {
@@ -219,7 +220,6 @@ public:
             else                   asks_head[price] = n_id;
         }
 
-        // Delink backward
         if (n_id != NULL_ORDER) {
             pool.get(n_id).prev_id = p_id;
         } else {
@@ -230,14 +230,17 @@ public:
         order.prev_id = NULL_ORDER;
         order.next_id = NULL_ORDER;
 
-        // Walk Book to fix Top-of-Book
         if (side == Side::BUY) {
+            total_bid_volume -= order.quantity;
             if (price == best_bid && bids_head[price] == NULL_ORDER) {
-                while (best_bid > 0 && bids_head[best_bid] == NULL_ORDER) best_bid--;
+                if (total_bid_volume == 0) best_bid = 0;
+                else while (best_bid > 0 && bids_head[best_bid] == NULL_ORDER) best_bid--;
             }
         } else {
+            total_ask_volume -= order.quantity;
             if (price == best_ask && asks_head[price] == NULL_ORDER) {
-                while (best_ask < MAX_PRICE_TICKS && asks_head[best_ask] == NULL_ORDER) best_ask++;
+                if (total_ask_volume == 0) best_ask = MAX_PRICE_TICKS;
+                else while (best_ask < MAX_PRICE_TICKS && asks_head[best_ask] == NULL_ORDER) best_ask++;
             }
         }
 
@@ -259,6 +262,7 @@ private:
             uint32_t trade_qty = std::min(resting_order.quantity, incoming_qty);
             incoming_qty -= trade_qty;
             resting_order.quantity -= trade_qty;
+            total_ask_volume -= trade_qty;
 
             if constexpr (ENABLE_HOTPATH_LOGGING) {
                 std::cout << "TRADE EXECUTED: " << trade_qty << " shares @ $" << best_ask << "\n";
@@ -275,8 +279,12 @@ private:
                 asks_head[best_ask] = resting_order.next_id;
                 if (asks_head[best_ask] == NULL_ORDER) {
                     asks_tail[best_ask] = NULL_ORDER;
-                    while (best_ask < MAX_PRICE_TICKS && asks_head[best_ask] == NULL_ORDER) {
-                        best_ask++;
+                    if (total_ask_volume == 0) {
+                        best_ask = MAX_PRICE_TICKS;
+                    } else {
+                        while (best_ask < MAX_PRICE_TICKS && asks_head[best_ask] == NULL_ORDER) {
+                            best_ask++;
+                        }
                     }
                 } else {
                     pool.get(asks_head[best_ask]).prev_id = NULL_ORDER;
@@ -299,6 +307,7 @@ private:
             uint32_t trade_qty = std::min(incoming_qty, resting_order.quantity);
             incoming_qty -= trade_qty;
             resting_order.quantity -= trade_qty;
+            total_bid_volume -= trade_qty;
 
             if constexpr (ENABLE_HOTPATH_LOGGING) {
                 std::cout << "TRADE EXECUTED: " << trade_qty << " shares @ $" << best_bid << "\n";
@@ -315,8 +324,12 @@ private:
                 bids_head[best_bid] = resting_order.next_id;
                 if (bids_head[best_bid] == NULL_ORDER) {
                     bids_tail[best_bid] = NULL_ORDER;
-                    while (best_bid > 0 && bids_head[best_bid] == NULL_ORDER) {
-                        best_bid--;
+                    if (total_bid_volume == 0) {
+                        best_bid = 0;
+                    } else {
+                        while (best_bid > 0 && bids_head[best_bid] == NULL_ORDER) {
+                            best_bid--;
+                        }
                     }
                 } else {
                     pool.get(bids_head[best_bid]).prev_id = NULL_ORDER;
@@ -425,40 +438,37 @@ public:
         while (cursor < end_of_file && *cursor != '\n') cursor++;
         if (cursor < end_of_file) cursor++; 
 
-        // New Router format: Timestamp, Type, OrderID, Side, Price, Quantity
+        // SREEJA'S FORMAT: OrderID, Side, Price, Quantity
+        // 'Side' is 'B' (Buy), 'S' (Sell), or 'C' (Cancel)
         while (cursor < end_of_file) {
             if (*cursor == '\n' || *cursor == '\r') {
                 cursor++;
                 continue;
             }
 
-            // 1. Timestamp
-            uint64_t timestamp = fast_atoi64(&cursor);
-            cursor++; // Skip comma
-
-            // 2. Type
-            char type = *cursor;
-            cursor += 2; // Skip Type char + comma
-
-            // 3. OrderID
             uint64_t order_id = fast_atoi64(&cursor);
             cursor++; // Skip comma
 
-            if (type == 'A') {
-                Side side = (*cursor == 'B') ? Side::BUY : Side::SELL;
-                cursor += 2; // Skip Side char + comma
+            char side_char = *cursor;
+            cursor += 2; // Skip Side char + comma
 
+            if (side_char == 'C') {
+                // It's a Cancel order
+                engine.cancel_order(order_id);
+                // Skip the remaining "0,0"
+                while (cursor < end_of_file && *cursor != '\n') cursor++;
+            } 
+            else {
+                // It's an Add order
+                Side side = (side_char == 'B') ? Side::BUY : Side::SELL;
+                
                 uint32_t price = fast_atoi32(&cursor);
                 cursor++; // Skip comma
-
+                
                 uint32_t qty = fast_atoi32(&cursor);
 
-                engine.add_order(timestamp, order_id, side, price, qty);
-            } 
-            else if (type == 'X') {
-                // Instantly skip the rest of the line's empty commas
-                while (cursor < end_of_file && *cursor != '\n') cursor++;
-                engine.cancel_order(order_id);
+                // Pass 0 for timestamp since we dropped it
+                engine.add_order(0, order_id, side, price, qty);
             }
             events_processed++;
         }
@@ -472,29 +482,19 @@ public:
 std::atomic<bool> market_is_open{true};
 
 void run_background_logger(LockFreeTradeLogger& ring_buffer) {
-    std::ofstream log_file("trade_tape.csv", std::ios::out | std::ios::app);
-    if (!log_file.is_open()) return;
-
-    if (log_file.tellp() == 0) log_file << "Timestamp,Price,Quantity,Side\n";
-
     TradeRecord trade;
     uint64_t trades_logged = 0;
 
+    // Pure Memory Counting: No slow Disk I/O!
     while (market_is_open.load(std::memory_order_acquire) || !ring_buffer.is_empty()) {
         if (ring_buffer.pop(trade)) {
-            log_file << trade.timestamp << ","
-                     << trade.price << ","
-                     << trade.quantity << ","
-                     << (trade.side == Side::BUY ? "BUY" : "SELL") << "\n";
             trades_logged++;
         } else {
-            std::this_thread::sleep_for(std::chrono::microseconds(1));
+            std::this_thread::yield();
         }
     }
 
-    log_file.flush();
-    log_file.close();
-    std::cout << "[Logger Thread] Shut down safely. Total trades written to disk: " << trades_logged << "\n";
+    std::cout << "[Logger Thread] Shut down safely. Total trades executed & processed: " << trades_logged << "\n";
 }
 
 // ============================================================================
@@ -502,14 +502,13 @@ void run_background_logger(LockFreeTradeLogger& ring_buffer) {
 // ============================================================================
 int main(int argc, char* argv[]) {
     if (argc < 2) {
-        std::cerr << "Usage: ./nano <dataset.csv>\n";
+        std::cerr << "Usage: ./trading_server <dataset.csv>\n";
         return 1;
     }
 
-    std::cout << "--- BOOTING NANOMATCH ENGINE ---\n";
+    std::cout << "--- BOOTING NANOMATCH ENGINE (GOD MODE) ---\n";
 
     LockFreeTradeLogger trade_logger(1048576); 
-    // Increased pool to 5 Million for the massive datasets
     LimitOrderBook engine(5000000, trade_logger);
     std::thread logger_thread(run_background_logger, std::ref(trade_logger));
 
@@ -543,7 +542,6 @@ int main(int argc, char* argv[]) {
     }
     std::cout << "====================================================\n\n";
 
-    // Safely spin down the background thread
     market_is_open.store(false, std::memory_order_release);
     logger_thread.join();
     
