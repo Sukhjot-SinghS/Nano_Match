@@ -73,9 +73,9 @@ Compiled with `-march=native`, this loop runs entirely in registers, allowing th
 
 A modern CPU fetches memory from RAM in 64‑byte chunks called **cache lines**. How data is packed inside those 64 bytes dictates the speed of the engine.
 
-### 🎯 Dual-Alignment Strategy (Zero Internal Fragmentation)
+### 🎯 Dual-Alignment Strategy
 
-NanoMatch explicitly orders variables within the `Order` struct to eliminate C++ ABI padding holes, packing the core data perfectly into **26 bytes**. However, we deploy two distinct alignment profiles depending on the binary's execution pattern:
+The production engine (`nano.cpp`) deliberately orders the `Order` members so the two single-byte fields (`side`, `is_active`) sit **last**. This packs all **26 bytes** of useful payload contiguously with **zero internal ABI padding holes** before alignment kicks in. We then deploy two distinct alignment profiles depending on the binary's execution pattern:
 
 **1. `nano.cpp` (Production Engine) → `alignas(64)`**
 
@@ -100,6 +100,8 @@ struct alignas(32) Order { ... }; // Padded to 32 bytes
 ```
 
 > **The `alignas(32)` Philosophy:** The micro-benchmark loop often processes orders in a highly controlled, sequential access pattern. Packing two 32-byte orders into a single 64-byte cache line allows a single L1 fetch to service two loop iterations, doubling sequential memory throughput.
+>
+> *Layout note:* Unlike the production struct above, the benchmark struct places `side` mid-record (between `quantity` and `nextOrderIndex`), which leaves a small 3-byte ABI padding hole. This is harmless here because `alignas(32)` rounds the record up to 32 bytes regardless — the zero-internal-hole property described above is specific to the `nano.cpp` production layout.
 
 ### 📐 Flat Price Arrays vs. Tree Structures
 
@@ -279,8 +281,3 @@ These techniques collectively transform abstract C++ code into a deterministic, 
  
 
 The micro-benchmark results confirm this directly: the NanoMatch engine achieves **9.36 ns** median crossing latency versus **56.2 ns** for an equivalent STL implementation — a **6x improvement** derived entirely from hardware sympathy and memory architecture, rather than algorithmic complexity.
-
-
-
-
-

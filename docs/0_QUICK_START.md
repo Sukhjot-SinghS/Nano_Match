@@ -1,6 +1,7 @@
+D
 # 🚀 Quick Start & Build Guide
 
-This project is built for native Linux environments. It relies on OS-level system calls (`mmap`) and aggressive hardware-specific compiler optimizations (AVX-512, LTO) for maximum throughput. 
+This project is built for native Linux environments. It relies on OS-level system calls (`mmap`) and aggressive hardware-specific compiler optimizations (AVX2 SIMD, LTO) for maximum throughput. 
 
 ---
 
@@ -69,7 +70,7 @@ cd ..
 ./build/trading_server data/dataset_C_dense_equilibrium.csv
 ~~~
 
-**🚀 Expected Output Note:** Throughput varies dramatically based on order book density and market structure (Tested natively on AMD Zen 4):
+**🚀 Expected Output Note:** Throughput varies dramatically based on order book density and market structure (Tested natively on an Intel Core i5-12450HX, 12th Gen Alder Lake):
 ~~~
 *(Note : The values that you get ,will most probably differ from the values written below , proofs  )
 ~~~
